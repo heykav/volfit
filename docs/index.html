@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>volfit | live implied-vol surface with SVI fits and no-arbitrage checks</title>
+<meta name="description" content="Fetches the live public Deribit BTC and ETH option books in your browser, inverts implied vols, fits an SVI smile per expiry, checks butterfly and calendar arbitrage, and draws the 3D surface. No server, no API key." />
+<meta name="author" content="Krishna Anubhav" />
+<link rel="canonical" href="https://heykav.github.io/volfit/" />
+<meta property="og:type" content="website" />
+<meta property="og:url" content="https://heykav.github.io/volfit/" />
+<meta property="og:title" content="volfit | live implied-vol surface" />
+<meta property="og:description" content="Live Deribit option chain, implied vols, SVI fit per expiry with RMSE and no-arbitrage checks, 3D surface. Runs in your browser." />
+<meta property="og:image" content="https://heykav.github.io/volfit/og-image.png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:image" content="https://heykav.github.io/volfit/og-image.png" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='18' fill='%23090A09'/%3E%3Cpath d='M10 30 Q50 120 90 30' stroke='%2300FF66' stroke-width='9' fill='none'/%3E%3C/svg%3E" />
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; connect-src 'self' https://www.deribit.com; img-src 'self' data: blob:; font-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'" />
+<link rel="stylesheet" href="styles.css" />
+<script src="https://cdn.jsdelivr.net/npm/plotly.js-dist-min@2.35.2/plotly.min.js"
+        integrity="sha384-cCVCZkAjYNxaYKbM8lsArLznDF/SvMFr1jcZrvOpSTCa0W40ZAdLzHCEulnUa5i7"
+        crossorigin="anonymous"></script>
+<script type="module" src="app.js"></script>
+</head>
+<body>
+<main>
+  <section class="win">
+    <div class="bar"><i></i><i></i><i></i><span>volfit ~ implied-vol surface</span></div>
+    <div class="body head">
+      <h1><span>volfit</span> <em>live implied-vol surface, fitted and checked in your browser</em></h1>
+      <p>Pulls the public Deribit BTC or ETH option book, inverts a Black-76 implied vol from each out-of-the-money bid/ask mid, fits a raw SVI smile per expiry, and tests every fit for butterfly and calendar arbitrage. No server, no API key.
+      <a href="https://github.com/heykav/volfit" target="_blank" rel="noopener">Source</a></p>
+      <div class="controls">
+        <label>Asset
+          <select id="asset"><option value="BTC">BTC</option><option value="ETH">ETH</option></select>
+        </label>
+        <button id="refresh" type="button">Fetch live</button>
+        <button id="snap" type="button" class="ghost">Use snapshot</button>
+      </div>
+      <div id="banner" class="banner" role="status">Loading...</div>
+      <dl id="prov" class="prov"></dl>
+    </div>
+  </section>
+
+  <section class="win">
+    <div class="bar"><i></i><i></i><i></i><span>surface.3d (drag to rotate; dots = market quotes, sheet = SVI fit, view clipped to |k| <= 0.5)</span></div>
+    <div class="body"><div id="surface" class="plot tall"></div></div>
+  </section>
+
+  <section class="win">
+    <div class="bar"><i></i><i></i><i></i><span>smile.slice</span></div>
+    <div class="body">
+      <div class="controls"><label>Expiry <select id="expiry"></select></label></div>
+      <div id="smile" class="plot"></div>
+      <div id="metrics" class="metrics"></div>
+    </div>
+  </section>
+
+  <section class="win">
+    <div class="bar"><i></i><i></i><i></i><span>fit.report (click a row to open its smile)</span></div>
+    <div class="body">
+      <div class="scroll"><table id="report"></table></div>
+      <div id="calendar" class="note"></div>
+    </div>
+  </section>
+
+  <section class="win">
+    <div class="bar"><i></i><i></i><i></i><span>limits.txt</span></div>
+    <div class="body limits">
+      <ul>
+        <li>Data is Deribit's public crypto option book, fetched when you load or refresh the page. It is a snapshot of quotes, not a trade record, and can be stale or thin in the wings.</li>
+        <li>Implied vol uses the bid/ask mid of out-of-the-money options only, priced with Black-76 on the forward Deribit reports per expiry (no interest-rate input). Quotes with no two-sided market are dropped.</li>
+        <li>The SVI fit is least squares in total variance with bounds on the kink location, width and wing slope. It is not a global no-arbitrage fit: the checks report what holds on the fitted curve over the quoted strike range, and a pass says nothing about strikes outside it.</li>
+        <li>Calendar checks compare adjacent fitted expiries only where both have quotes.</li>
+        <li>This is a modelling and visualisation tool, not trading advice, and nothing here is a price you can trade at.</li>
+      </ul>
+    </div>
+  </section>
+</main>
+</body>
+</html>
