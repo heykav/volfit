@@ -12,9 +12,10 @@ export function tween(key, dur, fn, easing = ease.out) {
     if (reduced() || dur <= 0) { fn(1); resolve(); return; }
     let cancelled = false;
     running.set(key, () => { cancelled = true; resolve(); });
-    const t0 = performance.now();
+    let t0 = null; // the clock starts at the first painted frame, so a busy main thread cannot eat the animation
     const step = now => {
       if (cancelled) return;
+      if (t0 === null) t0 = now;
       const p = Math.min(1, (now - t0) / dur);
       fn(easing(p));
       if (p < 1) requestAnimationFrame(step); else { running.delete(key); resolve(); }
