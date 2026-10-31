@@ -176,6 +176,33 @@ test('no layout shift while data arrives (skeletons match the final boxes)', asy
   await ctx.close();
 });
 
+test('short-dated expiries are not drawn on the surface or the term line but are listed in the table with the reason', async () => {
+  const { ctx, page } = await open();
+  await page.goto(srv.url);
+  await ready(page);
+  const ticks = await page.evaluate(() => document.getElementById('surface').layout.scene.yaxis.ticktext);
+  const dots = await page.locator('#term circle').count();
+  assert.equal(dots, ticks.length, 'term line and surface show the same expiries');
+  await page.click('#d-table summary');
+  const notShown = await page.locator('#report tbody tr', { hasText: 'not shown on surface: under 7 days to expiry' }).count();
+  assert.ok(notShown >= 1, 'table lists the hidden short expiries with a reason');
+  const rows = await page.locator('#report tbody tr').count();
+  const fittedRows = await page.locator('#report tbody tr', { hasText: 'on surface' }).count();
+  assert.ok(fittedRows === rows - (await page.locator('#report tbody tr', { hasText: 'not fitted' }).count()), 'every fitted expiry is accounted for in the table');
+  assert.ok(ticks.length === fittedRows - notShown, 'surface count = fitted minus not shown');
+  await ctx.close();
+});
+
+test('mobile: the 3D surface fills the viewport width and is tall enough to read', async () => {
+  const { ctx, page } = await open({ viewport: { width: 375, height: 812 } });
+  await page.goto(srv.url);
+  await ready(page);
+  const b = await page.locator('#surface').boundingBox();
+  assert.ok(b.width >= 374, `width ${b.width}`);
+  assert.ok(b.height >= 520, `height ${b.height}`);
+  await ctx.close();
+});
+
 test('dense diagnostics are collapsed until opened', async () => {
   const { ctx, page } = await open();
   await page.goto(srv.url);

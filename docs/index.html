@@ -95,7 +95,7 @@
       <div class="overlay" id="surface-ov"><div class="sk-plot sk"></div></div>
     </div>
     <p class="legend"><span class="key k-sheet"></span>SVI fit<span class="key k-dot"></span>market quote (bid/ask mid)<span class="key k-sel"></span>selected expiry</p>
-    <p class="hint">Drag to rotate &middot; double-click to reset &middot; view clipped to |ln(K/F)| &le; 0.5</p>
+    <p class="hint">Drag to rotate &middot; double-click to reset &middot; view clipped to |ln(K/F)| &le; 0.5 &middot; expiries under 7 days are fitted but not drawn (see table)</p>
   </section>
   </div>
 
@@ -151,7 +151,7 @@
       <li>Data is Deribit's public crypto option book at the moment you load or refresh. It is quotes, not trades, and can be stale or thin in the wings.</li>
       <li>Implied vol uses bid/ask mids of out-of-the-money options with a two-sided market, priced with Black-76 on Deribit's forward for each expiry. No interest-rate input.</li>
       <li>The SVI fit is bounded least squares, not a global arbitrage-free calibration. The checks say what holds on the fitted curve over the quoted strikes, and nothing about strikes beyond them. Calendar checks compare adjacent expiries only where both have quotes.</li>
-      <li>Expiries under 2 days are not fitted. Skew is read at &plusmn;0.10 log-moneyness on the expiry closest to 30 days that trades that wide.</li>
+      <li>Expiries under 2 days are not fitted. Expiries under 7 days are fitted and checked but not drawn on the 3D surface or the term line, because they are quoted over a narrow strike window with a very steep smile. Skew is read at &plusmn;0.10 log-moneyness on the expiry closest to 30 days that trades that wide.</li>
       <li>A modelling and visualisation tool. Not trading advice, and not a price you can trade at.</li>
     </ul>
   </section>

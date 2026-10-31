@@ -11,10 +11,10 @@ const CAMS = {
   smiles: { x: 0.02, y: -2.0, z: 0.28 },
   top: { x: 0.02, y: -0.5, z: 2.2 },
 };
-const camOf = n => { const c = CAMS[n] || CAMS.angled, k = innerWidth < 640 ? 0.78 : 1; return { x: c.x * k, y: c.y * k, z: c.z * k }; };
+const camOf = n => { const c = CAMS[n] || CAMS.angled, k = innerWidth < 640 ? 1.15 : 1; return { x: c.x * k, y: c.y * k, z: c.z * k }; };
 const KCLIP = 0.5; // 3D view only: short-dated wings beyond this dominate the z-axis
 const ASPECT = { x: 1.3, y: 1.1, z: 0.8 };
-const state = { cur: 'BTC', rows: [], fitted: [], sel: 0, data: null, summary: null, cam: 'angled', liveError: null, surf: null, selSeq: 0 };
+const state = { cur: 'BTC', rows: [], fitted: [], shown: [], sel: 0, data: null, summary: null, cam: 'angled', liveError: null, surf: null, selSeq: 0 };
 
 const nextFrame = () => new Promise(r => requestAnimationFrame(() => setTimeout(r, 0)));
 const pct = (x, d = 2) => (x * 100).toFixed(d);
@@ -76,7 +76,8 @@ const sph = e => { const r = Math.hypot(e.x, e.y, e.z); return { r, az: Math.ata
 const eyeOf = o => ({ x: o.r * Math.cos(o.el) * Math.cos(o.az), y: o.r * Math.cos(o.el) * Math.sin(o.az), z: o.r * Math.sin(o.el) });
 const curEye = () => $('surface').layout.scene.camera.eye;
 const wrapAngle = a => Math.atan2(Math.sin(a), Math.cos(a));
-const focusCenter = i => ({ x: 0, y: state.fitted.length > 1 ? 0.28 * (i / (state.fitted.length - 1) - 0.5) * ASPECT.y : 0, z: 0 });
+const shownIdx = () => state.shown.indexOf(state.rows[state.sel]);
+const focusCenter = i => ({ x: 0, y: i >= 0 && state.shown.length > 1 ? 0.28 * (i / (state.shown.length - 1) - 0.5) * ASPECT.y : 0, z: 0 });
 
 let camPending = false, camNext = null;
 function applyCam(eye, center) {
@@ -109,7 +110,7 @@ function glide(toEye, toCenter, dur = 800, key = 'cam') {
 function setCam(name) {
   state.cam = name;
   document.querySelectorAll('.cams button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.cam === name)));
-  return glide(camOf(name), focusCenter(state.sel >= 0 ? state.fitted.indexOf(state.rows[state.sel]) : 0), 850);
+  return glide(camOf(name), focusCenter(shownIdx()), 850);
 }
 
 // Own orbit control: drag to rotate with inertia, double-click to reset, arrow keys to nudge.
@@ -160,7 +161,7 @@ function wireOrbit() {
 /* ---------- surface ---------- */
 async function renderSurface(rows, animate) {
   const el = $('surface');
-  const fitted = state.fitted;
+  const fitted = state.shown;
   if (!hasGL()) { el.innerHTML = '<p class="note" style="padding:24px">The 3D surface needs WebGL, which this browser has switched off. The smile charts and the diagnostics table still work.</p>'; document.body.dataset.surface = 'ready'; return; }
   if (!fitted.length) { el.textContent = 'No expiry had enough two-sided quotes to fit.'; document.body.dataset.surface = 'ready'; return; }
   const gmin = Math.max(-KCLIP, Math.min(...fitted.map(r => r.kmin))), gmax = Math.min(KCLIP, Math.max(...fitted.map(r => r.kmax)));
@@ -195,8 +196,8 @@ async function renderSurface(rows, animate) {
     hoverlabel: { bgcolor: css('--c-surface'), bordercolor: css('--c-rule-strong'), font: { family: css('--f-mono'), size: 12, color: css('--c-text') } },
     scene: {
       xaxis: ax(innerWidth < 640 ? '' : 'ln(K/F)'), yaxis: ax('expiry', { tickvals: yi, ticktext: fitted.map(r => r.label), tickfont: { size: 9 } }),
-      zaxis: ax('IV %'), camera: { eye: start, center: focusCenter(fitted.indexOf(state.rows[state.sel])), up: { x: 0, y: 0, z: 1 } },
-      aspectmode: 'manual', aspectratio: ASPECT, dragmode: false,
+      zaxis: ax('IV %'), camera: { eye: start, center: focusCenter(shownIdx()), up: { x: 0, y: 0, z: 1 } },
+      aspectmode: 'manual', aspectratio: innerWidth < 640 ? { x: 0.95, y: 1.0, z: 0.8 } : ASPECT, dragmode: false,
     },
   }, { responsive: true, displaylogo: false, displayModeBar: false, scrollZoom: false });
   document.body.dataset.surface = run ? 'building' : 'ready';
@@ -218,8 +219,8 @@ async function renderSurface(rows, animate) {
 function setHighlight() {
   const S = state.surf, el = $('surface');
   if (!S || !el.data) return;
-  const i = state.fitted.indexOf(state.rows[state.sel]);
-  if (i < 0) return;
+  const i = shownIdx();
+  if (i < 0) { Plotly.restyle('surface', { x: [[]], y: [[]], z: [[]] }, [2]); return; }
   const xs = [], zs = [];
   S.kg.forEach((k, j) => { if (S.zFull[i][j] !== null) { xs.push(k); zs.push(S.zFull[i][j] + 0.05); } });
   Plotly.restyle('surface', { x: [xs], y: [xs.map(() => i)], z: [zs] }, [2]);
@@ -321,21 +322,21 @@ async function selectExpiry(i, animate) {
   document.body.dataset.expiry = state.rows[i].label;
   if ($('surface').data) {
     setHighlight();
-    if (animate && state.cam !== 'custom') glide(curEye(), focusCenter(fi), 700, 'focus');
+    if (animate && state.cam !== 'custom') glide(curEye(), focusCenter(shownIdx()), 700, 'focus');
   }
   await drawSmile(!animate, seq);
 }
 
 /* ---------- term structure sparkline ---------- */
 function renderTerm() {
-  const f = state.fitted, svg = $('term');
+  const f = state.shown, svg = $('term');
   if (!f.length) { svg.innerHTML = ''; return; }
   const W = 320, H = 120, L = 8, R = 8, T = 22, B = 26;
   const xs = f.map(r => Math.sqrt(r.days)), x0 = Math.min(...xs), x1 = Math.max(...xs);
   const ys = f.map(r => 100 * r.atm), lo = Math.min(...ys), hi = Math.max(...ys), pad = Math.max(0.5, (hi - lo) * 0.15);
   const X = v => L + (W - L - R) * (x1 === x0 ? 0.5 : (v - x0) / (x1 - x0));
   const Y = v => T + (H - T - B) * (1 - (v - (lo - pad)) / (hi - lo + 2 * pad));
-  const sel = state.fitted.indexOf(state.rows[state.sel]);
+  const sel = shownIdx();
   const pts = f.map((r, i) => [X(xs[i]), Y(ys[i])]);
   const NS = 'http://www.w3.org/2000/svg';
   svg.innerHTML = '';
@@ -343,8 +344,7 @@ function renderTerm() {
   add('line', { class: 'ax', x1: L, x2: W - R, y1: H - B + 6, y2: H - B + 6 });
   add('polyline', { class: 'ln', points: pts.map(p => p.join(',')).join(' ') });
   pts.forEach((p, i) => add('circle', { class: 'pt' + (i === sel ? ' on' : ''), cx: p[0], cy: p[1], r: i === sel ? 5 : 3 }));
-  const sp = pts[sel];
-  add('text', { class: 'hot', x: Math.min(W - 30, Math.max(30, sp[0])), y: Math.max(12, sp[1] - 11), 'text-anchor': 'middle' }, `${ys[sel].toFixed(1)}%`);
+  if (sel >= 0) { const sp = pts[sel]; add('text', { class: 'hot', x: Math.min(W - 30, Math.max(30, sp[0])), y: Math.max(12, sp[1] - 11), 'text-anchor': 'middle' }, `${ys[sel].toFixed(1)}%`); }
   add('text', { x: L, y: H - 6 }, f[0].label);
   add('text', { x: W - R, y: H - 6, 'text-anchor': 'end' }, f[f.length - 1].label);
   svg.setAttribute('aria-label', `ATM implied vol by expiry: ${f.map((r, i) => `${r.label} ${ys[i].toFixed(1)} percent`).join(', ')}`);
@@ -353,21 +353,21 @@ function renderTerm() {
 /* ---------- secondary ---------- */
 function renderTable(rows) {
   const t = $('report');
-  const head = '<thead><tr><th>expiry</th><th>days</th><th>forward</th><th>quotes</th><th>ATM IV %</th><th>RMSE (pts)</th><th>max err</th><th>vs Deribit mark</th><th>butterfly min g</th><th>wing bound</th><th>calendar vs prev</th></tr></thead>';
+  const head = '<thead><tr><th>expiry</th><th>days</th><th>forward</th><th>quotes</th><th>ATM IV %</th><th>RMSE (pts)</th><th>max err</th><th>vs Deribit mark</th><th>butterfly min g</th><th>wing bound</th><th>calendar vs prev</th><th>display</th></tr></thead>';
   const body = rows.map((r, i) => {
-    if (!r.fit) return `<tr data-i="${i}" class="dim"><td>${r.label}</td><td>${r.days.toFixed(1)}</td><td>${Math.round(r.F)}</td><td>${r.used}</td><td colspan="7" style="text-align:left">not fitted: ${r.skipped}</td></tr>`;
+    if (!r.fit) return `<tr data-i="${i}" class="dim"><td>${r.label}</td><td>${r.days.toFixed(1)}</td><td>${Math.round(r.F)}</td><td>${r.used}</td><td colspan="8" style="text-align:left">not fitted: ${r.skipped}</td></tr>`;
     const cal = r.cal === undefined ? '<span class="dim">first</span>' : r.cal === null ? '<span class="dim">no overlap</span>'
       : r.cal.ok ? '<span class="ok">pass</span>' : `<span class="no">fail (${r.cal.worst.toExponential(1)})</span>`;
     return `<tr data-i="${i}"><td>${r.label}</td><td>${r.days.toFixed(1)}</td><td>${Math.round(r.F)}</td><td>${r.used}</td>` +
       `<td>${pct(r.atm)}</td><td>${pct(r.fit.rmse, 3)}</td><td>${pct(r.fit.maxErr, 2)}</td><td>${r.markDiff === null ? 'n/a' : pct(r.markDiff, 2)}</td>` +
-      `<td class="${r.bf.ok ? 'ok' : 'no'}">${r.bf.min.toFixed(3)}</td><td class="${r.lee ? 'ok' : 'no'}">${r.lee ? 'pass' : 'fail'}</td><td>${cal}</td></tr>`;
+      `<td class="${r.bf.ok ? 'ok' : 'no'}">${r.bf.min.toFixed(3)}</td><td class="${r.lee ? 'ok' : 'no'}">${r.lee ? 'pass' : 'fail'}</td><td>${cal}</td><td class="dim" style="text-align:left">${[r.onSurface ? 'on surface' : `not shown on surface: ${r.surfaceReason}`, r.atBound ? 'SVI width at its bound' : ''].filter(Boolean).join('; ')}</td></tr>`;
   }).join('');
   t.innerHTML = head + '<tbody>' + body + '</tbody>';
   t.querySelectorAll('tbody tr').forEach(tr => tr.addEventListener('click', () => {
     const i = Number(tr.dataset.i);
     if (rows[i].fit) { selectExpiry(i, true); $('t-smile').scrollIntoView({ behavior: reduced() ? 'auto' : 'smooth', block: 'start' }); }
   }));
-  $('table-note').textContent = 'Butterfly g is Gatheral\'s density condition scanned on 400 points over the quoted strikes plus 0.05 log-moneyness each side (must be >= 0). Calendar compares total variance of adjacent expiries over the range both trade. "vs Deribit mark" is the median absolute gap between our mid-based IV and Deribit\'s own mark_iv, in vol points. Click a row to open its smile.';
+  $('table-note').textContent = 'Butterfly g is Gatheral\'s density condition scanned on 400 points over the quoted strikes plus 0.05 log-moneyness each side (must be >= 0). Calendar compares total variance of adjacent expiries over the range both trade. "vs Deribit mark" is the median absolute gap between our mid-based IV and Deribit\'s own mark_iv, in vol points. Expiries under 7 days are fitted and checked but not drawn on the 3D surface or the term line. "SVI width at its bound" means the fit hit the allowed range for the width parameter. Click a row to open its smile.';
 }
 
 function renderProv(data, rows) {
@@ -404,6 +404,7 @@ async function run(forceSnapshot) {
     state.data = data;
     state.rows = analyse(data.result, data.fetchedAtMs);
     state.fitted = state.rows.filter(r => r.fit);
+    state.shown = state.fitted.filter(r => r.onSurface);
     state.summary = summarise(state.rows);
     if (!state.summary) throw new Error('no expiry had enough two-sided quotes to fit');
     if (data.source === 'live') setStatus('live', `Live ${cur} book, ${utc(data.fetchedAtMs).slice(11)}`);

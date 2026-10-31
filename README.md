@@ -63,6 +63,7 @@ Refresh the fallback snapshots with `npm run snapshot`.
 - Data is Deribit's public option book at the moment you load the page. It is quotes, not trades, and can be stale or thin in the wings. Near-dated expiries (under 2 days) are not fitted.
 - This is crypto, not equity, index or rates data. It is not a Cboe or exchange-listed equity chain.
 - The SVI fit is a least-squares fit with bounds. It is not a global arbitrage-free calibration. The butterfly and calendar checks report what holds on the fitted curve over the quoted strike range (plus a small margin), and say nothing about strikes beyond it. Calendar checks compare adjacent expiries only where both have quotes.
+- Display rule: expiries under 7 days to expiry (`SURFACE_MIN_DAYS` in `docs/lib/analyse.js`) are fitted, checked and listed in the diagnostics table, but not drawn on the 3D sheet or the term line. They are quoted over a narrow strike window (about -0.13 to +0.07 log-moneyness on the snapshot) with a very steep smile, so the front edge of the sheet was a few wing quotes. Fits whose SVI width hits its allowed bound are flagged in the table.
 - Animation is for orientation only. Frame rate was measured in headless Chrome with a software renderer, so it says nothing about a real GPU.
 - The 3D view is clipped to `|ln(K/F)| <= 0.5` for readability, and uses the expiry index on its depth axis, not calendar time.
 - The Deribit `mark_iv` comparison is a sanity check on my inversion, not a claim that either is the true vol.

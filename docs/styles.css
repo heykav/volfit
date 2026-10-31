@@ -207,7 +207,8 @@ footer{display:flex;justify-content:space-between;gap:var(--s-3);flex-wrap:wrap;
   .kpi + .kpi{padding-left:var(--s-4)}
   .kpi:nth-child(3){padding-left:0}
   .panel{margin-top:var(--s-7)}
-  .plot.surface{height:460px}.plot.smile{height:300px}
+  #sec-surface .plotwrap{margin-inline:calc(var(--gut) * -1)}
+  .plot.surface{height:min(600px,74vh)}.plot.smile{height:300px}
   .hint{display:none}
   .prov{grid-template-columns:1fr;gap:var(--s-1)}
   .prov dd{margin-bottom:var(--s-3)}
