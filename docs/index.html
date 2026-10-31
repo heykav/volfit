@@ -6,6 +6,7 @@
 <title>volfit | live implied-vol surface with SVI fits and no-arbitrage checks</title>
 <meta name="description" content="Fetches the live public Deribit BTC and ETH option books in your browser, inverts implied vols, fits an SVI smile per expiry, checks butterfly and calendar arbitrage, and draws the 3D surface. No server, no API key." />
 <meta name="author" content="Krishna Anubhav" />
+<meta name="theme-color" content="#080A08" />
 <link rel="canonical" href="https://heykav.github.io/volfit/" />
 <meta property="og:type" content="website" />
 <meta property="og:url" content="https://heykav.github.io/volfit/" />
@@ -24,60 +25,138 @@
         crossorigin="anonymous"></script>
 <script type="module" src="app.js"></script>
 </head>
-<body>
-<main>
-  <section class="win">
-    <div class="bar"><i></i><i></i><i></i><span>volfit ~ implied-vol surface</span></div>
-    <div class="body head">
-      <h1><span>volfit</span> <em>live implied-vol surface, fitted and checked in your browser</em></h1>
-      <p>Pulls the public Deribit BTC or ETH option book, inverts a Black-76 implied vol from each out-of-the-money bid/ask mid, fits a raw SVI smile per expiry, and tests every fit for butterfly and calendar arbitrage. No server, no API key.
-      <a href="https://github.com/heykav/volfit" target="_blank" rel="noopener">Source</a></p>
-      <div class="controls">
-        <label>Asset
-          <select id="asset"><option value="BTC">BTC</option><option value="ETH">ETH</option></select>
-        </label>
-        <button id="refresh" type="button">Fetch live</button>
-        <button id="snap" type="button" class="ghost">Use snapshot</button>
+<body data-state="loading">
+<a class="skip" href="#sec-surface">Skip to the charts</a>
+
+<header class="bar">
+  <div class="wrap bar-in">
+    <a class="brand" href="./" aria-label="volfit home">
+      <svg viewBox="0 0 32 32" width="26" height="26" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#0D100D" stroke="#2E3A2E"/><path d="M5 10 Q16 31 27 10" stroke="#00FF66" stroke-width="2.6" fill="none" stroke-linecap="round"/><circle cx="16" cy="20.2" r="2.1" fill="#B6FF2E"/></svg>
+      <span>volfit</span>
+    </a>
+    <div class="status" id="status" data-kind="loading" role="status" aria-live="polite">
+      <i class="dot" aria-hidden="true"></i>
+      <span id="status-text">Starting...</span>
+      <span id="age" class="age"></span>
+    </div>
+    <div class="actions">
+      <div class="seg" role="radiogroup" aria-label="Underlying">
+        <button type="button" role="radio" aria-checked="true" data-asset="BTC">BTC</button>
+        <button type="button" role="radio" aria-checked="false" data-asset="ETH">ETH</button>
       </div>
-      <div id="banner" class="banner" role="status">Loading...</div>
-      <dl id="prov" class="prov"></dl>
+      <button type="button" id="refresh" class="btn">Refresh</button>
+      <button type="button" id="snap" class="btn ghost">Snapshot</button>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="lead">
+  <section class="hero" id="hero" aria-labelledby="headline" aria-busy="true">
+    <p class="eyebrow" id="eyebrow">Implied volatility / Deribit options</p>
+    <h1 id="headline"><span class="sk-line sk" style="width:94%">&nbsp;</span><span class="sk-line sk" style="width:86%">&nbsp;</span><span class="sk-line sk" style="width:58%">&nbsp;</span></h1>
+    <p class="sub" id="subline"><span class="sk-line sk" style="width:80%">&nbsp;</span></p>
+
+    <div class="strip">
+      <article class="kpi">
+        <h2>ATM implied vol</h2>
+        <p class="num"><span id="s-atm" class="sk">00.0%</span></p>
+        <p class="cap" id="c-atm">&nbsp;</p>
+      </article>
+      <article class="kpi">
+        <h2>Skew at &plusmn;0.10</h2>
+        <p class="num"><span id="s-skew" class="sk">+0.0</span><small> vol pts</small></p>
+        <p class="cap" id="c-skew">&nbsp;</p>
+      </article>
+      <article class="kpi">
+        <h2>Typical fit error</h2>
+        <p class="num"><span id="s-rmse" class="sk">0.00</span><small> vol pts</small></p>
+        <p class="cap" id="c-rmse">&nbsp;</p>
+      </article>
+      <article class="kpi">
+        <h2>Arbitrage checks</h2>
+        <p class="num"><span id="s-pass" class="sk">00</span><small id="s-total"> of 00 pass</small></p>
+        <p class="cap" id="c-pass">&nbsp;</p>
+      </article>
     </div>
   </section>
 
-  <section class="win">
-    <div class="bar"><i></i><i></i><i></i><span>surface.3d (drag to rotate; dots = market quotes, sheet = SVI fit, view clipped to |k| <= 0.5)</span></div>
-    <div class="body"><div id="surface" class="plot tall"></div></div>
+  <section class="panel" id="sec-surface" aria-labelledby="t-surface">
+    <div class="sec-head">
+      <span class="idx">01</span><h2 id="t-surface">Vol surface</h2>
+      <div class="cams" role="group" aria-label="Camera view">
+        <button type="button" data-cam="angled" aria-pressed="true">Angled</button>
+        <button type="button" data-cam="smiles" aria-pressed="false">Smiles</button>
+        <button type="button" data-cam="top" aria-pressed="false">Top</button>
+      </div>
+    </div>
+    <div class="plotwrap">
+      <div id="surface" class="plot surface" tabindex="0" aria-label="3D implied vol surface. Drag to rotate, double-click to reset, arrow keys rotate."></div>
+      <div class="overlay" id="surface-ov"><div class="sk-plot sk"></div></div>
+    </div>
+    <p class="legend"><span class="key k-sheet"></span>SVI fit<span class="key k-dot"></span>market quote (bid/ask mid)<span class="key k-sel"></span>selected expiry</p>
+    <p class="hint">Drag to rotate &middot; double-click to reset &middot; view clipped to |ln(K/F)| &le; 0.5</p>
   </section>
+  </div>
 
-  <section class="win">
-    <div class="bar"><i></i><i></i><i></i><span>smile.slice</span></div>
-    <div class="body">
-      <div class="controls"><label>Expiry <select id="expiry"></select></label></div>
-      <div id="smile" class="plot"></div>
-      <div id="metrics" class="metrics"></div>
+  <section class="panel" id="sec-smile" aria-labelledby="t-smile">
+    <div class="sec-head"><span class="idx">02</span><h2 id="t-smile">Smile by expiry</h2></div>
+    <div class="smile-grid">
+      <div class="smile-main">
+        <div class="scrub">
+          <div class="scrub-top"><output id="scrub-label" for="scrub">&nbsp;</output><span class="days" id="scrub-days"></span></div>
+          <input type="range" id="scrub" min="0" max="0" step="1" value="0" aria-label="Expiry" />
+          <div class="ticks" id="ticks" aria-hidden="true"></div>
+        </div>
+        <div class="chips" id="chips" role="radiogroup" aria-label="Expiry"></div>
+        <div class="plotwrap">
+          <div id="smile" class="plot smile"></div>
+          <div class="overlay" id="smile-ov"><div class="sk-plot sk"></div></div>
+        </div>
+      </div>
+      <aside class="readout" aria-label="Fit readout for the selected expiry">
+        <dl class="rows" id="metrics">
+          <div><dt>ATM IV</dt><dd><span id="m-atm">0.0</span>%</dd></div>
+          <div><dt>Fit RMSE</dt><dd><span id="m-rmse">0.000</span> pts</dd></div>
+          <div><dt>Max error</dt><dd><span id="m-max">0.00</span> pts</dd></div>
+          <div><dt>Quotes used</dt><dd><span id="m-n">0</span></dd></div>
+          <div><dt>Butterfly g min</dt><dd id="m-bf"><span id="m-bfv">0.000</span> <em id="m-bfs"></em></dd></div>
+          <div><dt>Wing b(1+|&rho;|)</dt><dd id="m-lee"><span id="m-leev">0.000</span> <em id="m-lees"></em></dd></div>
+        </dl>
+        <p class="params" id="params"></p>
+        <figure class="term">
+          <figcaption>ATM implied vol by expiry</figcaption>
+          <svg id="term" viewBox="0 0 320 120" role="img" aria-label="ATM implied vol by expiry"></svg>
+        </figure>
+      </aside>
     </div>
   </section>
 
-  <section class="win">
-    <div class="bar"><i></i><i></i><i></i><span>fit.report (click a row to open its smile)</span></div>
-    <div class="body">
+  <details class="more" id="d-table">
+    <summary><span>03 &nbsp;Fit diagnostics for every expiry</span><em>table</em></summary>
+    <div class="more-body">
       <div class="scroll"><table id="report"></table></div>
-      <div id="calendar" class="note"></div>
+      <p class="note" id="table-note"></p>
     </div>
-  </section>
+  </details>
 
-  <section class="win">
-    <div class="bar"><i></i><i></i><i></i><span>limits.txt</span></div>
-    <div class="body limits">
-      <ul>
-        <li>Data is Deribit's public crypto option book, fetched when you load or refresh the page. It is a snapshot of quotes, not a trade record, and can be stale or thin in the wings.</li>
-        <li>Implied vol uses the bid/ask mid of out-of-the-money options only, priced with Black-76 on the forward Deribit reports per expiry (no interest-rate input). Quotes with no two-sided market are dropped.</li>
-        <li>The SVI fit is least squares in total variance with bounds on the kink location, width and wing slope. It is not a global no-arbitrage fit: the checks report what holds on the fitted curve over the quoted strike range, and a pass says nothing about strikes outside it.</li>
-        <li>Calendar checks compare adjacent fitted expiries only where both have quotes.</li>
-        <li>This is a modelling and visualisation tool, not trading advice, and nothing here is a price you can trade at.</li>
-      </ul>
-    </div>
+  <details class="more" id="d-prov">
+    <summary><span>04 &nbsp;Data provenance and method</span><em>sources</em></summary>
+    <div class="more-body"><dl id="prov" class="prov"></dl></div>
+  </details>
+
+  <section class="limits" aria-labelledby="t-limits">
+    <h2 id="t-limits">Limits, in plain words</h2>
+    <ul>
+      <li>Data is Deribit's public crypto option book at the moment you load or refresh. It is quotes, not trades, and can be stale or thin in the wings.</li>
+      <li>Implied vol uses bid/ask mids of out-of-the-money options with a two-sided market, priced with Black-76 on Deribit's forward for each expiry. No interest-rate input.</li>
+      <li>The SVI fit is bounded least squares, not a global arbitrage-free calibration. The checks say what holds on the fitted curve over the quoted strikes, and nothing about strikes beyond them. Calendar checks compare adjacent expiries only where both have quotes.</li>
+      <li>Expiries under 2 days are not fitted. Skew is read at &plusmn;0.10 log-moneyness on the expiry closest to 30 days that trades that wide.</li>
+      <li>A modelling and visualisation tool. Not trading advice, and not a price you can trade at.</li>
+    </ul>
   </section>
 </main>
+
+<footer class="wrap"><span>volfit &middot; MIT &middot; <a href="https://github.com/heykav/volfit" target="_blank" rel="noopener">source</a></span><span>Data: Deribit public API</span></footer>
 </body>
 </html>

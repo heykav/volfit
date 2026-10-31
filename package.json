@@ -3,9 +3,20 @@
   "version": "1.0.0",
   "description": "Live implied-volatility surface from public Deribit option chains: SVI fits with no-arbitrage checks, in the browser.",
   "type": "module",
-  "scripts": { "test": "node --test test/*.test.js", "snapshot": "node scripts/snapshot.mjs" },
-  "engines": { "node": ">=18" },
+  "scripts": {
+    "test": "node --test --test-concurrency=1 test/*.test.js",
+    "snapshot": "node scripts/snapshot.mjs"
+  },
+  "engines": {
+    "node": ">=18"
+  },
   "license": "MIT",
   "author": "Krishna Anubhav <heykavofficial@gmail.com>",
-  "repository": { "type": "git", "url": "git+https://github.com/heykav/volfit.git" }
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/heykav/volfit.git"
+  },
+  "devDependencies": {
+    "playwright-core": "^1.49.1"
+  }
 }
